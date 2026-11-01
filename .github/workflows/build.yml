@@ -59,12 +59,6 @@ jobs:
         with:
           cache-read-only: false
 
-      - name: Build release APK
-        run: |
-          chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace :app:assembleRelease \
-            -Pandroid.injected.build.abi=arm64-v8a
-
       - name: Prepare signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -90,6 +84,22 @@ jobs:
             echo "KEY_PASS=android" >> "$GITHUB_ENV"
           fi
           echo "KS_FILE=$KS" >> "$GITHUB_ENV"
+
+      - name: Restore app/build.gradle from backup
+        run: |
+          if [ ! -f app/build.gradle ] && [ -f app/build.gradle.bak ]; then
+            cp app/build.gradle.bak app/build.gradle
+          fi
+
+      - name: Build release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace :app:assembleRelease \
+            -Pandroid.injected.build.abi=arm64-v8a \
+            -Pandroid.injected.signing.store.file="$KS_FILE" \
+            -Pandroid.injected.signing.store.password="$KS_PASS" \
+            -Pandroid.injected.signing.key.alias="$KS_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASS"
 
       - name: Sign APK
         run: |
